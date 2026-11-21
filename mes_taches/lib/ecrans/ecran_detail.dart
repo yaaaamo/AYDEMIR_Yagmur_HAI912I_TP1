@@ -1,7 +1,8 @@
-// Écran de détail d'une tâche (parties D1 et D2).
+// Écran de détail d'une tâche (parties D1, D2 et bonus G1).
 import 'package:flutter/material.dart';
 
 import '../modele/taches.dart';
+import 'ecran_formulaire.dart';
 
 /// Affiche tout le contenu d'une tâche et permet de la marquer faite ou à
 /// faire.
@@ -57,17 +58,38 @@ class EcranDetail extends StatelessWidget {
           const SizedBox(height: 24),
           FilledButton.icon(
             icon: Icon(tache.faite ? Icons.undo : Icons.check),
-            label: Text(
-              tache.faite ? 'Marquer à faire' : 'Marquer comme faite',
-            ),
+            label: Text(tache.faite ? 'Marquer à faire' : 'Marquer comme faite'),
             // Technique 1 : la tâche modifiée (une NOUVELLE tâche, de même
             // identifiant) est la valeur de retour de l'écran.
             onPressed: () =>
                 Navigator.of(context).pop(tache.copyWith(faite: !tache.faite)),
           ),
+          const SizedBox(height: 8),
+          OutlinedButton.icon(
+            icon: const Icon(Icons.edit_outlined),
+            label: const Text('Modifier'),
+            onPressed: () => _modifier(context),
+          ),
         ],
       ),
     );
+  }
+
+  /// G1 : ouvre le formulaire pré-rempli. Si la tâche est enregistrée, le
+  /// détail se ferme en la renvoyant à la liste, par le même chemin que
+  /// « Marquer comme faite » : la liste n'a rien de nouveau à apprendre.
+  Future<void> _modifier(BuildContext context) async {
+    final modifiee = await Navigator.of(context).push<Tache>(
+      MaterialPageRoute(
+        builder: (_) => EcranFormulaire.modification(
+          tacheInitiale: tache,
+          aujourdhui: aujourdhui,
+        ),
+      ),
+    );
+    // Après un await, l'écran a pu être retiré : vérifier context.mounted.
+    if (!context.mounted || modifiee == null) return;
+    Navigator.of(context).pop(modifiee);
   }
 }
 

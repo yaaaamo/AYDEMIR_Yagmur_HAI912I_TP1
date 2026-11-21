@@ -65,7 +65,7 @@ class _EcranListeState extends State<EcranListe> {
   Future<void> _creer() async {
     final nouvelle = await Navigator.of(context).push<Tache>(
       MaterialPageRoute(
-        builder: (_) => EcranFormulaire(
+        builder: (_) => EcranFormulaire.creation(
           identifiant: _nouvelIdentifiant(),
           aujourdhui: _aujourdhui,
         ),
@@ -91,8 +91,7 @@ class _EcranListeState extends State<EcranListe> {
   }
 
   /// B2 : marque la tâche faite ou à faire, depuis la liste.
-  void _basculer(Tache tache) =>
-      _remplacer(tache.copyWith(faite: !tache.faite));
+  void _basculer(Tache tache) => _remplacer(tache.copyWith(faite: !tache.faite));
 
   /// D1, D2 : ouvre le détail et attend son résultat.
   Future<void> _ouvrir(Tache tache, DateTime aujourdhui) async {
