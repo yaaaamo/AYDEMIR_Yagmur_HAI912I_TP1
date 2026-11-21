@@ -1,4 +1,4 @@
-// Écran principal : la liste des tâches (parties B à E, bonus G2 et G3).
+// Écran principal : la liste des tâches (parties B à E, bonus G2 à G4).
 import 'package:flutter/material.dart';
 
 import '../donnees/exemples.dart';
@@ -6,6 +6,7 @@ import '../donnees/lecture_taches.dart';
 import '../modele/filtre.dart';
 import '../modele/taches.dart';
 import '../modele/tri.dart';
+import '../widgets/panneau_detail.dart';
 import '../widgets/tuile_tache.dart';
 import 'ecran_detail.dart';
 import 'ecran_formulaire.dart';
@@ -34,6 +35,14 @@ class _EcranListeState extends State<EcranListe> {
   late List<Tache> _taches;
   Filtre _filtre = Filtre.toutes;
   Tri _tri = Tri.saisie;
+
+  // G4 : la tâche dont le détail est affiché à côté de la liste (écran
+  // large). On garde son IDENTIFIANT, pas une copie de la tâche : la tâche
+  // affichée est toujours celle, à jour, de _taches.
+  String? _idSelectionne;
+
+  /// G4 : au-delà de cette largeur, liste et détail sont côte à côte.
+  static const largeurDeuxPanneaux = 840.0;
 
   // Sert à fabriquer des identifiants uniques pour les tâches ajoutées.
   int _numeroAjout = 0;
@@ -132,8 +141,23 @@ class _EcranListeState extends State<EcranListe> {
   void _basculer(Tache tache) =>
       _remplacer(tache.copyWith(faite: !tache.faite));
 
+  /// G4 (écran large) : « Modifier » depuis le panneau de détail.
+  Future<void> _modifierDansPanneau(Tache tache) async {
+    final modifiee = await modifierTache(context, tache, _aujourdhui);
+    if (!mounted || modifiee == null) return;
+    _remplacer(modifiee);
+  }
+
   /// Une tâche de la liste ; G2 : la glisser vers la gauche la supprime.
-  Widget _tuile(Tache tache, DateTime aujourdhui) => Dismissible(
+  ///
+  /// G4 : la toucher ouvre son détail dans une nouvelle page (écran étroit)
+  /// ou la sélectionne pour le panneau voisin (écran large).
+  Widget _tuile(
+    Tache tache,
+    DateTime aujourdhui, {
+    required bool deuxPanneaux,
+    required bool selectionnee,
+  }) => Dismissible(
     // La clé suit la tâche (et non sa position) quand la liste filtrée ou
     // triée change, ou qu'une tâche disparaît.
     key: ValueKey(tache.id),
@@ -143,8 +167,11 @@ class _EcranListeState extends State<EcranListe> {
     child: TuileTache(
       tache: tache,
       aujourdhui: aujourdhui,
+      selectionnee: selectionnee,
       onBasculer: () => _basculer(tache),
-      onOuvrir: () => _ouvrir(tache, aujourdhui),
+      onOuvrir: deuxPanneaux
+          ? () => setState(() => _idSelectionne = tache.id)
+          : () => _ouvrir(tache, aujourdhui),
     ),
   );
 
@@ -183,72 +210,110 @@ class _EcranListeState extends State<EcranListe> {
           ]
         : trier(visibles, _tri, aujourdhui: aujourdhui);
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Mes tâches'),
-        actions: [
-          // G3 : le menu de tri.
-          PopupMenuButton<Tri>(
-            icon: const Icon(Icons.sort),
-            tooltip: 'Trier',
-            initialValue: _tri,
-            onSelected: (tri) => setState(() => _tri = tri),
-            itemBuilder: (_) => [
-              for (final t in Tri.values)
-                CheckedPopupMenuItem(
-                  value: t,
-                  checked: t == _tri,
-                  child: Text(t.libelle),
-                ),
+    // G4 : la mise en page dépend de la largeur disponible.
+    final deuxPanneaux = MediaQuery.sizeOf(context).width > largeurDeuxPanneaux;
+    // La tâche sélectionnée se DÉDUIT de l'état ; elle n'est affichée que si
+    // elle est encore visible (pas supprimée, pas écartée par le filtre).
+    final selection = deuxPanneaux
+        ? visibles.where((t) => t.id == _idSelectionne).firstOrNull
+        : null;
+
+    final barre = AppBar(
+      title: const Text('Mes tâches'),
+      actions: [
+        // G3 : le menu de tri.
+        PopupMenuButton<Tri>(
+          icon: const Icon(Icons.sort),
+          tooltip: 'Trier',
+          initialValue: _tri,
+          onSelected: (tri) => setState(() => _tri = tri),
+          itemBuilder: (_) => [
+            for (final t in Tri.values)
+              CheckedPopupMenuItem(
+                value: t,
+                checked: t == _tri,
+                child: Text(t.libelle),
+              ),
+          ],
+        ),
+      ],
+    );
+
+    // La colonne de la liste : en-tête fixe (compteur, filtre) et tâches.
+    final liste = Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        // En-tête fixe : compteur et filtre ne défilent pas.
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+          child: Text(
+            '$restantes à faire',
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: SegmentedButton<Filtre>(
+            showSelectedIcon: false,
+            segments: [
+              for (final f in Filtre.values)
+                ButtonSegment(value: f, label: Text(f.libelle)),
             ],
+            selected: {_filtre},
+            onSelectionChanged: (choix) =>
+                setState(() => _filtre = choix.single),
           ),
-        ],
-      ),
-      body: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          // En-tête fixe : compteur et filtre ne défilent pas.
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-            child: Text(
-              '$restantes à faire',
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: SegmentedButton<Filtre>(
-              showSelectedIcon: false,
-              segments: [
-                for (final f in Filtre.values)
-                  ButtonSegment(value: f, label: Text(f.libelle)),
+        ),
+        const SizedBox(height: 8),
+        // Expanded donne à la liste une hauteur bornée : l'espace restant.
+        // Seule cette partie défile.
+        Expanded(
+          child: visibles.isEmpty
+              ? Center(child: Text(_filtre.messageVide))
+              : ListView.builder(
+                  // Marge basse : le bouton flottant ne cache pas la
+                  // dernière tâche.
+                  padding: const EdgeInsets.only(bottom: 88),
+                  itemCount: elements.length,
+                  itemBuilder: (context, i) => switch (elements[i]) {
+                    final Tache tache => _tuile(
+                      tache,
+                      aujourdhui,
+                      deuxPanneaux: deuxPanneaux,
+                      selectionnee: tache.id == selection?.id,
+                    ),
+                    final GroupeEcheance groupe => _EnTeteGroupe(groupe),
+                    // La liste ne contient que des tâches et des en-têtes.
+                    final autre => throw StateError('Élément : $autre'),
+                  },
+                ),
+        ),
+      ],
+    );
+
+    return Scaffold(
+      appBar: barre,
+      body: deuxPanneaux
+          // G4 : liste à gauche, détail de la tâche sélectionnée à droite.
+          ? Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                SizedBox(width: 400, child: liste),
+                const VerticalDivider(width: 1),
+                Expanded(
+                  child: selection == null
+                      ? const Center(child: Text('Sélectionnez une tâche'))
+                      : PanneauDetail(
+                          key: ValueKey(selection.id),
+                          tache: selection,
+                          aujourdhui: aujourdhui,
+                          onBasculer: () => _basculer(selection),
+                          onModifier: () => _modifierDansPanneau(selection),
+                        ),
+                ),
               ],
-              selected: {_filtre},
-              onSelectionChanged: (choix) =>
-                  setState(() => _filtre = choix.single),
-            ),
-          ),
-          const SizedBox(height: 8),
-          // Expanded donne à la liste une hauteur bornée : l'espace restant.
-          // Seule cette partie défile.
-          Expanded(
-            child: visibles.isEmpty
-                ? Center(child: Text(_filtre.messageVide))
-                : ListView.builder(
-                    // Marge basse : le bouton flottant ne cache pas la
-                    // dernière tâche.
-                    padding: const EdgeInsets.only(bottom: 88),
-                    itemCount: elements.length,
-                    itemBuilder: (context, i) => switch (elements[i]) {
-                      final Tache tache => _tuile(tache, aujourdhui),
-                      final GroupeEcheance groupe => _EnTeteGroupe(groupe),
-                      // La liste ne contient que des tâches et des en-têtes.
-                      final autre => throw StateError('Élément : $autre'),
-                    },
-                  ),
-          ),
-        ],
-      ),
+            )
+          : liste,
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _creer,
         icon: const Icon(Icons.add),

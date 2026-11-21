@@ -1,4 +1,4 @@
-// L'affichage d'une tâche dans la liste (partie C2).
+// L'affichage d'une tâche dans la liste (partie C2, sélection : bonus G4).
 import 'package:flutter/material.dart';
 
 import '../modele/taches.dart';
@@ -16,6 +16,7 @@ class TuileTache extends StatelessWidget {
     required this.aujourdhui,
     this.onBasculer,
     this.onOuvrir,
+    this.selectionnee = false,
   });
 
   final Tache tache;
@@ -29,6 +30,9 @@ class TuileTache extends StatelessWidget {
 
   /// Toucher la tuile ailleurs que sur la case : ouvrir le détail.
   final VoidCallback? onOuvrir;
+
+  /// G4 : vrai si son détail est affiché dans le panneau voisin.
+  final bool selectionnee;
 
   @override
   Widget build(BuildContext context) {
@@ -60,6 +64,8 @@ class TuileTache extends StatelessWidget {
       ),
       trailing: _IndicateurPriorite(priorite: tache.priorite),
       onTap: onOuvrir,
+      selected: selectionnee,
+      selectedTileColor: couleurs.secondaryContainer,
     );
   }
 }
