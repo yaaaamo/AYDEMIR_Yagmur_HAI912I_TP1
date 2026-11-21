@@ -58,7 +58,9 @@ class EcranDetail extends StatelessWidget {
           const SizedBox(height: 24),
           FilledButton.icon(
             icon: Icon(tache.faite ? Icons.undo : Icons.check),
-            label: Text(tache.faite ? 'Marquer à faire' : 'Marquer comme faite'),
+            label: Text(
+              tache.faite ? 'Marquer à faire' : 'Marquer comme faite',
+            ),
             // Technique 1 : la tâche modifiée (une NOUVELLE tâche, de même
             // identifiant) est la valeur de retour de l'écran.
             onPressed: () =>

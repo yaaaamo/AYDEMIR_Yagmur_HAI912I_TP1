@@ -52,32 +52,33 @@ void main() {
     expect(find.text('pour le 1/12'), findsOneWidget);
   });
 
-  testWidgets('enregistrer remplace la tâche (même identifiant) dans la liste', (
-    tester,
-  ) async {
-    await tester.pumpWidget(
-      liste([
-        Tache(id: 'c', titre: 'Courses'),
-        Tache(id: 'b', titre: 'Banque'),
-      ]),
-    );
-    await modifier(tester, 'Courses');
+  testWidgets(
+    'enregistrer remplace la tâche (même identifiant) dans la liste',
+    (tester) async {
+      await tester.pumpWidget(
+        liste([
+          Tache(id: 'c', titre: 'Courses'),
+          Tache(id: 'b', titre: 'Banque'),
+        ]),
+      );
+      await modifier(tester, 'Courses');
 
-    await tester.enterText(champ('Titre'), 'Courses bio');
-    await enregistrer(tester);
+      await tester.enterText(champ('Titre'), 'Courses bio');
+      await enregistrer(tester);
 
-    // Retour direct à la liste : le détail s'est fermé.
-    expect(find.text('Mes tâches'), findsOneWidget);
-    expect(find.text('Courses bio'), findsOneWidget);
-    expect(find.text('Courses'), findsNothing);
-    // Remplacée, pas ajoutée : toujours deux tâches, à la même place.
-    expect(find.text('2 à faire'), findsOneWidget);
-    final tuiles = find.byType(ListTile);
-    expect(
-      find.descendant(of: tuiles.at(0), matching: find.text('Courses bio')),
-      findsOneWidget,
-    );
-  });
+      // Retour direct à la liste : le détail s'est fermé.
+      expect(find.text('Mes tâches'), findsOneWidget);
+      expect(find.text('Courses bio'), findsOneWidget);
+      expect(find.text('Courses'), findsNothing);
+      // Remplacée, pas ajoutée : toujours deux tâches, à la même place.
+      expect(find.text('2 à faire'), findsOneWidget);
+      final tuiles = find.byType(ListTile);
+      expect(
+        find.descendant(of: tuiles.at(0), matching: find.text('Courses bio')),
+        findsOneWidget,
+      );
+    },
+  );
 
   testWidgets("la modification garde l'état « faite »", (tester) async {
     await tester.pumpWidget(

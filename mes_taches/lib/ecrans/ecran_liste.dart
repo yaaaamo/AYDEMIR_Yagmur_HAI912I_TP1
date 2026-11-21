@@ -1,4 +1,4 @@
-// Écran principal : la liste des tâches (parties B à E).
+// Écran principal : la liste des tâches (parties B à E, bonus G2).
 import 'package:flutter/material.dart';
 
 import '../donnees/exemples.dart';
@@ -90,8 +90,44 @@ class _EcranListeState extends State<EcranListe> {
     });
   }
 
+  /// G2 : retire la tâche de l'état et propose de l'annuler.
+  ///
+  /// La position retenue est celle dans la liste COMPLÈTE (et non dans la
+  /// liste filtrée) : c'est là que la tâche sera remise.
+  void _supprimer(Tache tache) {
+    final position = _taches.indexWhere((t) => t.id == tache.id);
+    if (position < 0) return;
+    setState(() {
+      _taches = [
+        for (final t in _taches)
+          if (t.id != tache.id) t,
+      ];
+    });
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text('« ${tache.titre} » supprimée'),
+          action: SnackBarAction(
+            label: 'Annuler',
+            onPressed: () => _restaurer(tache, position),
+          ),
+        ),
+      );
+  }
+
+  /// G2 : remet [tache] à sa [position] d'origine (bornée si la liste a
+  /// raccourci entre-temps). Sans effet si elle est déjà présente.
+  void _restaurer(Tache tache, int position) {
+    if (!mounted || _taches.any((t) => t.id == tache.id)) return;
+    setState(() {
+      _taches = [..._taches]..insert(position.clamp(0, _taches.length), tache);
+    });
+  }
+
   /// B2 : marque la tâche faite ou à faire, depuis la liste.
-  void _basculer(Tache tache) => _remplacer(tache.copyWith(faite: !tache.faite));
+  void _basculer(Tache tache) =>
+      _remplacer(tache.copyWith(faite: !tache.faite));
 
   /// D1, D2 : ouvre le détail et attend son résultat.
   Future<void> _ouvrir(Tache tache, DateTime aujourdhui) async {
@@ -157,14 +193,20 @@ class _EcranListeState extends State<EcranListe> {
                     itemCount: visibles.length,
                     itemBuilder: (context, i) {
                       final tache = visibles[i];
-                      return TuileTache(
+                      // G2 : glisser vers la gauche supprime la tâche.
+                      return Dismissible(
                         // La clé suit la tâche (et non sa position) quand la
-                        // liste filtrée change.
+                        // liste filtrée change ou qu'une tâche disparaît.
                         key: ValueKey(tache.id),
-                        tache: tache,
-                        aujourdhui: aujourdhui,
-                        onBasculer: () => _basculer(tache),
-                        onOuvrir: () => _ouvrir(tache, aujourdhui),
+                        direction: DismissDirection.endToStart,
+                        background: const _FondSuppression(),
+                        onDismissed: (_) => _supprimer(tache),
+                        child: TuileTache(
+                          tache: tache,
+                          aujourdhui: aujourdhui,
+                          onBasculer: () => _basculer(tache),
+                          onOuvrir: () => _ouvrir(tache, aujourdhui),
+                        ),
                       );
                     },
                   ),
@@ -175,6 +217,30 @@ class _EcranListeState extends State<EcranListe> {
         onPressed: _creer,
         icon: const Icon(Icons.add),
         label: const Text('Ajouter'),
+      ),
+    );
+  }
+}
+
+/// Le fond rouge révélé quand on fait glisser une tâche pour la supprimer.
+class _FondSuppression extends StatelessWidget {
+  const _FondSuppression();
+
+  @override
+  Widget build(BuildContext context) {
+    final couleurs = Theme.of(context).colorScheme;
+    return ColoredBox(
+      color: couleurs.errorContainer,
+      child: Align(
+        alignment: Alignment.centerRight,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24),
+          child: Icon(
+            Icons.delete_outline,
+            color: couleurs.onErrorContainer,
+            semanticLabel: 'Supprimer',
+          ),
+        ),
       ),
     );
   }
