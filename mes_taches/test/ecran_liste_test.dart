@@ -251,4 +251,73 @@ void main() {
     expect(tester.getTopLeft(find.text('40 à faire')), avant);
     expect(find.text('Tâche n°0'), findsNothing); // la liste a bien défilé
   });
+
+  // ---------------------------------------------------------------- D1, D2
+  /// Quatre tâches dont la première est faite : avec le filtre « À faire »,
+  /// la 2e tâche AFFICHÉE (Dentiste) n'est pas la 2e de la liste complète
+  /// (Courses). C'est le piège signalé par le sujet.
+  List<Tache> quatreTaches() => [
+    Tache(id: 'i', titre: 'Installer', faite: true),
+    Tache(id: 'c', titre: 'Courses'),
+    Tache(id: 'd', titre: 'Dentiste', note: 'carte vitale'),
+    Tache(id: 'b', titre: 'Banque'),
+  ];
+
+  testWidgets('toucher une tâche ouvre son détail, retour sans rien changer', (
+    tester,
+  ) async {
+    await tester.pumpWidget(enApp(EcranListe(tachesInitiales: quatreTaches())));
+
+    await tester.tap(find.text('Dentiste'));
+    await tester.pumpAndSettle(); // animation de push
+    expect(find.text('Détail de la tâche'), findsOneWidget);
+    expect(find.text('carte vitale'), findsOneWidget);
+
+    await tester.pageBack(); // bouton retour de la barre d'application
+    await tester.pumpAndSettle();
+    expect(find.text('Mes tâches'), findsOneWidget);
+    expect(find.text('3 à faire'), findsOneWidget); // rien n'a changé
+    expect(tester.widget<Checkbox>(caseDe('Dentiste')).value, isFalse);
+  });
+
+  testWidgets('avec « À faire », marquer faite la 2e tâche affichée depuis le '
+      'détail modifie la bonne tâche', (tester) async {
+    await tester.pumpWidget(enApp(EcranListe(tachesInitiales: quatreTaches())));
+    await filtrer(tester, 'À faire');
+
+    // La 2e tâche affichée : Dentiste.
+    final tuiles = find.byType(ListTile);
+    expect(
+      find.descendant(of: tuiles.at(1), matching: find.text('Dentiste')),
+      findsOneWidget,
+    );
+    await tester.tap(find.text('Dentiste'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Marquer comme faite'));
+    await tester.pumpAndSettle(); // animation de pop
+
+    // De retour à la liste : Dentiste a disparu, le compteur a baissé de un.
+    expect(find.text('Dentiste'), findsNothing);
+    expect(find.text('2 à faire'), findsOneWidget);
+    expect(find.text('Courses'), findsOneWidget); // pas la mauvaise tâche
+
+    await filtrer(tester, 'Faites');
+    expect(find.text('Dentiste'), findsOneWidget);
+    expect(find.text('Courses'), findsNothing);
+  });
+
+  testWidgets('« Marquer à faire » depuis le détail décoche la tâche', (
+    tester,
+  ) async {
+    await tester.pumpWidget(enApp(EcranListe(tachesInitiales: quatreTaches())));
+
+    await tester.tap(find.text('Installer'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Marquer à faire'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('4 à faire'), findsOneWidget);
+    expect(tester.widget<Checkbox>(caseDe('Installer')).value, isFalse);
+  });
 }

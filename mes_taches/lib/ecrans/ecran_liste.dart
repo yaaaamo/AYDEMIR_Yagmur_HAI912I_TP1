@@ -1,4 +1,4 @@
-// Écran principal : la liste des tâches (parties B et C, puis D, E).
+// Écran principal : la liste des tâches (parties B, C, D, puis E).
 import 'package:flutter/material.dart';
 
 import '../donnees/exemples.dart';
@@ -6,6 +6,7 @@ import '../donnees/lecture_taches.dart';
 import '../modele/filtre.dart';
 import '../modele/taches.dart';
 import '../widgets/tuile_tache.dart';
+import 'ecran_detail.dart';
 
 /// La liste des tâches, avec le compteur « n à faire » et le filtre.
 ///
@@ -60,18 +61,36 @@ class _EcranListeState extends State<EcranListe> {
     });
   }
 
-  /// B2 : marque la tâche [id] faite ou à faire.
+  /// Remplace dans l'état la tâche de même identifiant que [nouvelle].
   ///
-  /// La tâche n'est pas modifiée (elle est immuable) : on la REMPLACE dans
-  /// l'état par une copie, retrouvée par son identifiant (jamais par sa
-  /// position, qui dépend du filtre).
-  void _basculer(String id) {
+  /// Les tâches sont immuables : on ne les modifie pas, on les REMPLACE.
+  /// La tâche est retrouvée par son identifiant, jamais par sa position
+  /// (qui dépend du filtre).
+  void _remplacer(Tache nouvelle) {
     setState(() {
       _taches = [
         for (final t in _taches)
-          if (t.id == id) t.copyWith(faite: !t.faite) else t,
+          if (t.id == nouvelle.id) nouvelle else t,
       ];
     });
+  }
+
+  /// B2 : marque la tâche faite ou à faire, depuis la liste.
+  void _basculer(Tache tache) =>
+      _remplacer(tache.copyWith(faite: !tache.faite));
+
+  /// D1, D2 : ouvre le détail et attend son résultat.
+  Future<void> _ouvrir(Tache tache, DateTime aujourdhui) async {
+    // push renvoie un Future, complété au moment du pop : la tâche modifiée,
+    // ou null si l'utilisateur revient en arrière sans agir.
+    final resultat = await Navigator.of(context).push<Tache>(
+      MaterialPageRoute(
+        builder: (_) => EcranDetail(tache: tache, aujourdhui: aujourdhui),
+      ),
+    );
+    // Après un await, l'écran a pu être retiré : vérifier mounted.
+    if (!mounted || resultat == null) return;
+    _remplacer(resultat);
   }
 
   @override
@@ -130,7 +149,8 @@ class _EcranListeState extends State<EcranListe> {
                         key: ValueKey(tache.id),
                         tache: tache,
                         aujourdhui: aujourdhui,
-                        onBasculer: () => _basculer(tache.id),
+                        onBasculer: () => _basculer(tache),
+                        onOuvrir: () => _ouvrir(tache, aujourdhui),
                       );
                     },
                   ),
