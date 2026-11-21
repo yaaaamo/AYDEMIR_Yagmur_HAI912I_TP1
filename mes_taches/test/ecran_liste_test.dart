@@ -104,22 +104,6 @@ void main() {
     expect(tester.widget<Checkbox>(caseDe('Courses')).value, isFalse);
   });
 
-  testWidgets('« Ajouter » ajoute une tâche et augmente le compteur', (
-    tester,
-  ) async {
-    await tester.pumpWidget(enApp(const EcranListe(tachesInitiales: [])));
-    expect(find.text('0 à faire'), findsOneWidget);
-
-    await tester.tap(find.text('Ajouter'));
-    await tester.pump();
-    await tester.tap(find.text('Ajouter'));
-    await tester.pump();
-
-    expect(find.text('2 à faire'), findsOneWidget);
-    expect(find.text('Tâche 1'), findsOneWidget);
-    expect(find.text('Tâche 2'), findsOneWidget);
-  });
-
   // -------------------------------------------------------------------- C1
   testWidgets('« Toutes » est le filtre par défaut', (tester) async {
     await tester.pumpWidget(enApp(EcranListe(tachesInitiales: troisTaches())));

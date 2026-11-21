@@ -1,4 +1,4 @@
-// Écran principal : la liste des tâches (parties B, C, D, puis E).
+// Écran principal : la liste des tâches (parties B à E).
 import 'package:flutter/material.dart';
 
 import '../donnees/exemples.dart';
@@ -7,6 +7,7 @@ import '../modele/filtre.dart';
 import '../modele/taches.dart';
 import '../widgets/tuile_tache.dart';
 import 'ecran_detail.dart';
+import 'ecran_formulaire.dart';
 
 /// La liste des tâches, avec le compteur « n à faire » et le filtre.
 ///
@@ -43,22 +44,36 @@ class _EcranListeState extends State<EcranListe> {
         widget.tachesInitiales ?? tachesDepuisJsonTexte(tachesExempleJson);
   }
 
-  /// Un identifiant qui n'est utilisé par aucune tâche de la liste.
+  /// La date du jour : celle de l'horloge fournie (tests), sinon l'actuelle.
+  DateTime get _aujourdhui => (widget.horloge ?? DateTime.now)();
+
+  /// E1 : un identifiant qui n'est utilisé par aucune tâche de la liste.
+  ///
+  /// Le compteur ne fait qu'augmenter (un numéro n'est jamais redonné) et
+  /// chaque candidat est comparé aux identifiants existants, y compris ceux
+  /// venus du JSON : l'unicité est garantie, pas seulement probable.
   String _nouvelIdentifiant() {
     String candidat;
     do {
       _numeroAjout++;
-      candidat = 'ajout-$_numeroAjout';
+      candidat = 'tache-$_numeroAjout';
     } while (_taches.any((t) => t.id == candidat));
     return candidat;
   }
 
-  /// B1 : ajoute une tâche d'exemple (remplacé par le formulaire en E1).
-  void _ajouter() {
-    setState(() {
-      final id = _nouvelIdentifiant();
-      _taches = [..._taches, Tache(id: id, titre: 'Tâche $_numeroAjout')];
-    });
+  /// E1 : ouvre le formulaire et ajoute la tâche créée, s'il y en a une.
+  Future<void> _creer() async {
+    final nouvelle = await Navigator.of(context).push<Tache>(
+      MaterialPageRoute(
+        builder: (_) => EcranFormulaire(
+          identifiant: _nouvelIdentifiant(),
+          aujourdhui: _aujourdhui,
+        ),
+      ),
+    );
+    // Retour sans enregistrer : null, rien n'est ajouté.
+    if (!mounted || nouvelle == null) return;
+    setState(() => _taches = [..._taches, nouvelle]);
   }
 
   /// Remplace dans l'état la tâche de même identifiant que [nouvelle].
@@ -102,7 +117,7 @@ class _EcranListeState extends State<EcranListe> {
       for (final t in _taches)
         if (_filtre.retient(t)) t,
     ];
-    final aujourdhui = (widget.horloge ?? DateTime.now)();
+    final aujourdhui = _aujourdhui;
 
     return Scaffold(
       appBar: AppBar(title: const Text('Mes tâches')),
@@ -158,7 +173,7 @@ class _EcranListeState extends State<EcranListe> {
         ],
       ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: _ajouter,
+        onPressed: _creer,
         icon: const Icon(Icons.add),
         label: const Text('Ajouter'),
       ),
