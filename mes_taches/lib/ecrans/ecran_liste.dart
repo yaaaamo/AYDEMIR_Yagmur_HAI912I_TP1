@@ -1,10 +1,11 @@
-// Écran principal : la liste des tâches (parties B à E, bonus G2).
+// Écran principal : la liste des tâches (parties B à E, bonus G2 et G3).
 import 'package:flutter/material.dart';
 
 import '../donnees/exemples.dart';
 import '../donnees/lecture_taches.dart';
 import '../modele/filtre.dart';
 import '../modele/taches.dart';
+import '../modele/tri.dart';
 import '../widgets/tuile_tache.dart';
 import 'ecran_detail.dart';
 import 'ecran_formulaire.dart';
@@ -28,9 +29,11 @@ class EcranListe extends StatefulWidget {
 }
 
 class _EcranListeState extends State<EcranListe> {
-  // L'ÉTAT de l'écran : deux informations, modifiées par setState.
+  // L'ÉTAT de l'écran, modifié par setState : les tâches, le filtre et
+  // (bonus G3) l'ordre d'affichage.
   late List<Tache> _taches;
   Filtre _filtre = Filtre.toutes;
+  Tri _tri = Tri.saisie;
 
   // Sert à fabriquer des identifiants uniques pour les tâches ajoutées.
   int _numeroAjout = 0;
@@ -129,6 +132,22 @@ class _EcranListeState extends State<EcranListe> {
   void _basculer(Tache tache) =>
       _remplacer(tache.copyWith(faite: !tache.faite));
 
+  /// Une tâche de la liste ; G2 : la glisser vers la gauche la supprime.
+  Widget _tuile(Tache tache, DateTime aujourdhui) => Dismissible(
+    // La clé suit la tâche (et non sa position) quand la liste filtrée ou
+    // triée change, ou qu'une tâche disparaît.
+    key: ValueKey(tache.id),
+    direction: DismissDirection.endToStart,
+    background: const _FondSuppression(),
+    onDismissed: (_) => _supprimer(tache),
+    child: TuileTache(
+      tache: tache,
+      aujourdhui: aujourdhui,
+      onBasculer: () => _basculer(tache),
+      onOuvrir: () => _ouvrir(tache, aujourdhui),
+    ),
+  );
+
   /// D1, D2 : ouvre le détail et attend son résultat.
   Future<void> _ouvrir(Tache tache, DateTime aujourdhui) async {
     // push renvoie un Future, complété au moment du pop : la tâche modifiée,
@@ -153,9 +172,38 @@ class _EcranListeState extends State<EcranListe> {
         if (_filtre.retient(t)) t,
     ];
     final aujourdhui = _aujourdhui;
+    // G3 : les éléments affichés, triés ; par échéance, chaque groupe non
+    // vide est précédé de son en-tête.
+    final List<Object> elements = _tri == Tri.echeance
+        ? [
+            for (final (:groupe, :taches) in grouperParEcheance(
+              visibles,
+              aujourdhui: aujourdhui,
+            )) ...[groupe, ...taches],
+          ]
+        : trier(visibles, _tri, aujourdhui: aujourdhui);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Mes tâches')),
+      appBar: AppBar(
+        title: const Text('Mes tâches'),
+        actions: [
+          // G3 : le menu de tri.
+          PopupMenuButton<Tri>(
+            icon: const Icon(Icons.sort),
+            tooltip: 'Trier',
+            initialValue: _tri,
+            onSelected: (tri) => setState(() => _tri = tri),
+            itemBuilder: (_) => [
+              for (final t in Tri.values)
+                CheckedPopupMenuItem(
+                  value: t,
+                  checked: t == _tri,
+                  child: Text(t.libelle),
+                ),
+            ],
+          ),
+        ],
+      ),
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -190,24 +238,12 @@ class _EcranListeState extends State<EcranListe> {
                     // Marge basse : le bouton flottant ne cache pas la
                     // dernière tâche.
                     padding: const EdgeInsets.only(bottom: 88),
-                    itemCount: visibles.length,
-                    itemBuilder: (context, i) {
-                      final tache = visibles[i];
-                      // G2 : glisser vers la gauche supprime la tâche.
-                      return Dismissible(
-                        // La clé suit la tâche (et non sa position) quand la
-                        // liste filtrée change ou qu'une tâche disparaît.
-                        key: ValueKey(tache.id),
-                        direction: DismissDirection.endToStart,
-                        background: const _FondSuppression(),
-                        onDismissed: (_) => _supprimer(tache),
-                        child: TuileTache(
-                          tache: tache,
-                          aujourdhui: aujourdhui,
-                          onBasculer: () => _basculer(tache),
-                          onOuvrir: () => _ouvrir(tache, aujourdhui),
-                        ),
-                      );
+                    itemCount: elements.length,
+                    itemBuilder: (context, i) => switch (elements[i]) {
+                      final Tache tache => _tuile(tache, aujourdhui),
+                      final GroupeEcheance groupe => _EnTeteGroupe(groupe),
+                      // La liste ne contient que des tâches et des en-têtes.
+                      final autre => throw StateError('Élément : $autre'),
                     },
                   ),
           ),
@@ -240,6 +276,29 @@ class _FondSuppression extends StatelessWidget {
             color: couleurs.onErrorContainer,
             semanticLabel: 'Supprimer',
           ),
+        ),
+      ),
+    );
+  }
+}
+
+/// G3 : l'en-tête d'un groupe dans l'affichage par échéance.
+class _EnTeteGroupe extends StatelessWidget {
+  const _EnTeteGroupe(this.groupe);
+
+  final GroupeEcheance groupe;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
+      child: Text(
+        groupe.libelle,
+        style: theme.textTheme.titleSmall?.copyWith(
+          color: groupe == GroupeEcheance.enRetard
+              ? theme.colorScheme.error
+              : theme.colorScheme.primary,
         ),
       ),
     );
