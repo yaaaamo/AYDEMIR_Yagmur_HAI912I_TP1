@@ -58,15 +58,15 @@ class TuileTache extends StatelessWidget {
             ? TextStyle(color: couleurs.error, fontWeight: FontWeight.bold)
             : null,
       ),
-      trailing: IndicateurPriorite(priorite: tache.priorite),
+      trailing: _IndicateurPriorite(priorite: tache.priorite),
       onTap: onOuvrir,
     );
   }
 }
 
 /// Une icône et le libellé de la priorité.
-class IndicateurPriorite extends StatelessWidget {
-  const IndicateurPriorite({super.key, required this.priorite});
+class _IndicateurPriorite extends StatelessWidget {
+  const _IndicateurPriorite({required this.priorite});
 
   final Priorite priorite;
 
