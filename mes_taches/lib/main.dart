@@ -3,6 +3,8 @@
 // Tout le reste est une composition de widgets.
 import 'package:flutter/material.dart';
 
+import 'ecrans/ecran_liste.dart';
+
 void main() => runApp(const MesTachesApp());
 
 class MesTachesApp extends StatelessWidget {
@@ -14,31 +16,8 @@ class MesTachesApp extends StatelessWidget {
       title: 'Mes tâches',
       debugShowCheckedModeBanner: false,
       // Material 3 est le défaut et tout le thème dérive d'une couleur.
-      theme: ThemeData(colorScheme: .fromSeed(seedColor: Colors.teal)),
-      // Écran provisoire : à remplacer par votre écran de liste (B1).
-      home: const _EcranProvisoire(),
-    );
-  }
-}
-
-/// Écran provisoire.
-class _EcranProvisoire extends StatelessWidget {
-  const _EcranProvisoire();
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Mes tâches')),
-      body: const Center(
-        child: Padding(
-          padding: EdgeInsets.all(24),
-          child: Text(
-            'Le projet se lance.\n'
-            'Remplacez cet écran par votre liste de tâches (partie B).',
-            textAlign: TextAlign.center,
-          ),
-        ),
-      ),
+      theme: ThemeData(colorScheme: .fromSeed(seedColor: Colors.indigo)),
+      home: const EcranListe(),
     );
   }
 }
