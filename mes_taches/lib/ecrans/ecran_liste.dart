@@ -1,29 +1,34 @@
-// Écran principal : la liste des tâches (parties B, puis C, D, E).
+// Écran principal : la liste des tâches (parties B et C, puis D, E).
 import 'package:flutter/material.dart';
 
 import '../donnees/exemples.dart';
 import '../donnees/lecture_taches.dart';
+import '../modele/filtre.dart';
 import '../modele/taches.dart';
+import '../widgets/tuile_tache.dart';
 
-/// La liste des tâches, avec le compteur « n à faire ».
+/// La liste des tâches, avec le compteur « n à faire » et le filtre.
 ///
-/// C'est un StatefulWidget : la liste des tâches est l'état de l'écran, et ce
-/// widget en est le seul propriétaire (une seule source de vérité).
+/// C'est un StatefulWidget : la liste des tâches et le filtre forment l'état
+/// de l'écran, et ce widget en est le seul propriétaire.
 class EcranListe extends StatefulWidget {
-  /// [tachesInitiales] permet aux tests de fournir leurs propres tâches ;
-  /// par défaut, l'écran lit les données d'exemple JSON.
-  const EcranListe({super.key, this.tachesInitiales});
+  const EcranListe({super.key, this.tachesInitiales, this.horloge});
 
+  /// Les tâches de départ (pour les tests) ; par défaut, les données
+  /// d'exemple JSON.
   final List<Tache>? tachesInitiales;
+
+  /// Donne la date du jour (pour les tests) ; par défaut, DateTime.now.
+  final DateTime Function()? horloge;
 
   @override
   State<EcranListe> createState() => _EcranListeState();
 }
 
 class _EcranListeState extends State<EcranListe> {
-  // L'ÉTAT de l'écran. Il vit dans cet objet State, qui survit aux
-  // reconstructions (et au rechargement à chaud).
+  // L'ÉTAT de l'écran : deux informations, modifiées par setState.
   late List<Tache> _taches;
+  Filtre _filtre = Filtre.toutes;
 
   // Sert à fabriquer des identifiants uniques pour les tâches ajoutées.
   int _numeroAjout = 0;
@@ -59,7 +64,7 @@ class _EcranListeState extends State<EcranListe> {
   ///
   /// La tâche n'est pas modifiée (elle est immuable) : on la REMPLACE dans
   /// l'état par une copie, retrouvée par son identifiant (jamais par sa
-  /// position, qui change avec les filtres de la partie C).
+  /// position, qui dépend du filtre).
   void _basculer(String id) {
     setState(() {
       _taches = [
@@ -71,38 +76,64 @@ class _EcranListeState extends State<EcranListe> {
 
   @override
   Widget build(BuildContext context) {
-    // Le compteur se CALCULE à partir de l'état ; il n'est pas stocké.
+    // Tout ce qui suit se DÉDUIT de l'état ; rien n'est stocké en double.
     final (:faites, :total) = bilan(_taches);
-    final restantes = total - faites;
+    final restantes = total - faites; // compte global, quel que soit le filtre
+    final visibles = [
+      for (final t in _taches)
+        if (_filtre.retient(t)) t,
+    ];
+    final aujourdhui = (widget.horloge ?? DateTime.now)();
 
     return Scaffold(
       appBar: AppBar(title: const Text('Mes tâches')),
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          // En-tête fixe : compteur et filtre ne défilent pas.
           Padding(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
             child: Text(
               '$restantes à faire',
               style: Theme.of(context).textTheme.titleMedium,
             ),
           ),
-          // Expanded donne à la ListView une hauteur bornée (l'espace restant).
-          Expanded(
-            child: ListView.builder(
-              itemCount: _taches.length,
-              itemBuilder: (context, i) {
-                final tache = _taches[i];
-                return ListTile(
-                  leading: Checkbox(
-                    value: tache.faite,
-                    onChanged: (_) => _basculer(tache.id),
-                  ),
-                  title: Text(tache.titre),
-                  subtitle: Text(tache.priorite.libelle),
-                );
-              },
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: SegmentedButton<Filtre>(
+              showSelectedIcon: false,
+              segments: [
+                for (final f in Filtre.values)
+                  ButtonSegment(value: f, label: Text(f.libelle)),
+              ],
+              selected: {_filtre},
+              onSelectionChanged: (choix) =>
+                  setState(() => _filtre = choix.single),
             ),
+          ),
+          const SizedBox(height: 8),
+          // Expanded donne à la liste une hauteur bornée : l'espace restant.
+          // Seule cette partie défile.
+          Expanded(
+            child: visibles.isEmpty
+                ? Center(child: Text(_filtre.messageVide))
+                : ListView.builder(
+                    // Marge basse : le bouton flottant ne cache pas la
+                    // dernière tâche.
+                    padding: const EdgeInsets.only(bottom: 88),
+                    itemCount: visibles.length,
+                    itemBuilder: (context, i) {
+                      final tache = visibles[i];
+                      return TuileTache(
+                        // La clé suit la tâche (et non sa position) quand la
+                        // liste filtrée change.
+                        key: ValueKey(tache.id),
+                        tache: tache,
+                        aujourdhui: aujourdhui,
+                        onBasculer: () => _basculer(tache.id),
+                      );
+                    },
+                  ),
           ),
         ],
       ),
